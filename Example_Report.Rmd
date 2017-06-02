@@ -1,0 +1,74 @@
+---
+title: "CPTR330 - Titanic Final Project"
+author: Preston Carman
+date: June 1, 2017
+course: CPTR330
+output: html_notebook
+---
+
+
+# Titanic Final Project 
+
+> Homework Notes: Describe the algorithm and give a few of the strengths and weaknesses.
+
+---
+
+
+```{r}
+train <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/train.csv", stringsAsFactors = FALSE)
+test <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test.csv", stringsAsFactors = FALSE)
+test_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_final.csv", stringsAsFactors = FALSE)
+
+test_results <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results.csv", stringsAsFactors = FALSE)
+test_results_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results_final.csv", stringsAsFactors = FALSE)
+```
+
+## Step 1 - Collect Data
+
+> Homework Notes: Give an overview of the data and its source.
+
+---
+
+
+
+## Step 2 - Exploring And Preparing The Data
+
+> Homework Notes: Explain the data features and any tranformations.
+
+---
+
+
+### Step 3 - Training A Model On The Data
+
+> Homework Notes: Explain how to train the model.
+
+---
+
+
+
+## Step 4 - Evaluating Model Performance
+
+> Homework Notes: Explain the model's perfromance. Highlight key results.
+
+---
+
+
+
+## Step 5 - Improving Model Performance
+
+> Homework Notes: What options can be used to improve the model? Explain and show.
+
+---
+
+
+```{r}
+# Kaggle Score
+accuracy_kaggle <- 0
+accuracy_kaggle
+```
+
+```{r}
+# Final Score
+accuracy_final <- 0
+accuracy_final
+```

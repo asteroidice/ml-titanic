@@ -1,0 +1,255 @@
+---
+title: "CPTR330 -- Final Project"
+author: "Ryan Rabello"
+date: "May 31, 2017"
+output:
+  pdf_document:
+    number_section: yes
+  html_document: default
+course: CPTR330
+---
+
+# Titanic Data
+
+## Importing data.
+First things first we need to import our data to take a look at it. 
+```{r}
+train <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/train.csv", stringsAsFactors = TRUE)
+test <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test.csv", stringsAsFactors = TRUE)
+test_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_final.csv", stringsAsFactors = TRUE)
+test_results <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results.csv", stringsAsFactors = TRUE)
+test_results_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results_final.csv", stringsAsFactors = TRUE)
+
+# For testing purposes. 
+train <- read.csv("./data/train.csv", stringsAsFactors = TRUE)
+test_final <- read.csv("./data/test.csv", stringsAsFactors = TRUE)
+str(train)
+```
+
+## Explaining data
+
+The following list briefly explains what each variable is and what type (categorical or regression) it is.
+
+* **Survived**	A Boolean (0 or 1) indicating the survival of this particular passenger. 
+* **pclass**	Ticket class	1 = 1st, 2 = 2nd, 3 = 3rd (A numerical representation of the)
+* **sex**	Gender of the individule. 
+* **Age**	Age in floating point years.
+* **sibsp**	# of siblings / spouses aboard the Titanic
+* **parch**	# of parents / children aboard the Titanic	
+* **ticket**	Ticket number
+* **fare**	Passenger fare (the cost of the ticket).
+* **cabin**	Cabin number (String ex "A15" and "B12")
+* **embarked**	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton
+
+Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of vairables so that everything works okay. Lastly I'm simplifying the cabin variable to just the first letter of the cabin. I believe this corresponds to the floor of the cabin. 
+```{r}
+process <- function (titanic) {
+  if ("Survived" %in% names(titanic)){
+    titanic$Survived <- factor(titanic$Survived, c(0, 1), c("Died", "Survived"))
+  }
+  titanic$PassengerId <- NULL
+  titanic$Name <- NULL
+  titanic$Ticket <- NULL
+  levels(titanic$Embarked) <- c("Missing", "Cherbourg", "Queenstown",  "Southampton")
+  
+  # Plot only cabins with more than 3 people. 
+  cabinLev <- levels(titanic$Cabin)
+  cabinLev <- substr(cabinLev, 1,1)
+  levels(titanic$Cabin) <- cabinLev
+  levels(titanic$Cabin) <- c("?","A", "B", "C", "D", "E", "F", "G", "T")
+  return(titanic)
+}
+train_titanic <- process(train)
+test_titanic <- process(test_final)
+test_titanic_labels <- factor(test_results_final$Survived, c(0, 1), c("Died", "Survived"))
+
+test_titanic_all <- cbind(Survived = test_titanic_labels, test_titanic)
+
+titanic <- rbind(train_titanic, test_titanic_all)
+
+```
+
+## Analyzing some data. 
+
+```{r}
+# Dynamically load `ggplot2`
+package <- 'ggplot2'
+if(package %in% rownames(installed.packages())) {
+  do.call('library', list(package))
+} else {
+  install.packages(package)
+  do.call("library", list(package))
+}
+package <- 'ggthemes'
+if(package %in% rownames(installed.packages())) {
+  do.call('library', list(package))
+} else {
+  install.packages(package)
+  do.call("library", list(package))
+}
+
+
+#ggplot <- function(...) ggplot2::ggplot(...) + scale_color_fivethirtyeight("cyl") + theme_fivethirtyeight()
+# ggplot <- function(...) ggplot2::ggplot(...) + theme_hc() + scale_colour_hc()
+ggplot(titanic, aes(Survived, Fare)) + geom_violin(scale = "area") + ggtitle("Fare related to survival")
+ggplot(titanic, aes(Survived, Age)) + geom_violin(scale = "area") + ggtitle("Age related to survival")
+
+# Plot a jitter graph
+ggplot(titanic, aes(Pclass, Survived)) + geom_jitter() + ggtitle("Person Class vs Survival")
+ggplot(titanic, aes(Sex, Survived)) + geom_jitter() + ggtitle("Gender vs Survival")
+ggplot(titanic, aes(Cabin, Survived)) + geom_jitter() + ggtitle("Cabin Level vs Survival")
+ggplot(titanic, aes(x=SibSp, y=Parch, colour = Survived)) + geom_jitter() + ggtitle("Family vs Survival") +labs(x="Siblings/Spouse", y="Parents/Children")
+```
+
+# Descision Trees
+
+## Training
+```{r}
+# Dynamically load `C50`
+package <- 'C50'
+if(package %in% rownames(installed.packages())) {
+  do.call('library', list(package))
+} else {
+  install.packages(package)
+  do.call("library", list(package))
+}
+
+# Preprocess
+names <- levels(train$Cabin)
+names[1] <- "?"
+levels(train$Cabin) <- names
+train_titanic$Cabin = train$Cabin
+
+# Train the model. 
+tree <- C5.0(train_titanic[,-1], train_titanic$`Survived`, trials = 5)
+
+summary(tree)
+# plot(tree)
+```
+
+
+## Testing
+```{r}
+tree_pred <- predict(tree, test_titanic)
+
+table(tree_pred, test_titanic_labels)
+
+# Calculate the percentage of correct guesses.
+tree_correct <- tree_pred == test_titanic_labels
+table(tree_correct)/length(tree_correct) * 100
+```
+
+## Test 2
+```{r}
+tree <- C5.0(train_titanic[,-1], train_titanic$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
+
+summary(tree)
+```
+## Kaggle Exporting
+```{r}
+export <- function(data,name) {
+  kaggle <- data.frame(PassengerId = test_final$PassengerId, Survived = as.numeric(data) - 1)
+  write.csv(x = kaggle, file = paste("./exports/",  name, ".csv", sep = ""), row.names = F, quote = F)
+}
+
+export(tree_pred, "tree")
+```
+
+# Naive Bayes
+
+```{r}
+# Load e1071 if it's not installed install it. 
+package <- 'e1071'
+if(package %in% rownames(installed.packages())) {
+  do.call('library', list(package))
+} else {
+  install.packages(package)
+  do.call("library", list(package))
+}
+# Trains the data set.
+nb1 <- naiveBayes(Survived~., data=train_titanic)
+#nb1
+```
+
+## Testing 
+```{r}
+nb_guess <- predict(nb1, test_titanic[,c("Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Cabin")])
+table(nb_guess, test_titanic_labels)
+
+# Calculate the percentage of correct guesses.
+nb_correct <- nb_guess == test_titanic_labels
+table(nb_correct)/length(nb_correct) * 100
+
+export(nb_guess, "nb")
+```
+
+# Neural Networks
+
+Neural networks only work with numerical data so I'm going to for now, remove the categorical data. An option to do later would be to associate a category to a set of nodes and activate the corresponding inpute node for the specific category.
+```{r}
+nn_process <- function(titanic){
+  # Covert Everything to a numeric.
+  titanic <- lapply(titanic, function(x) as.numeric(x))
+  
+  # Define our Normalize function
+  normalize <- function(x) {
+    if (anyNA(x)) {
+      x <- scale(x, center = FALSE, scale = TRUE)
+      x[is.na(x)] <- 0
+      return(x)
+    } else {
+      return ((x - min(x)) / (max(x) - min(x)))
+    }
+  }
+  
+  titanic <- lapply(titanic, normalize)
+  titanic <- data.frame(titanic)
+  return(titanic)
+}
+
+nn_train <- nn_process(train_titanic)
+nn_test <- nn_process(test_titanic)
+```
+
+## Training the neural network
+```{r}
+# Dynamically load `neuralnet`
+package <- 'neuralnet'
+if(package %in% rownames(installed.packages())) {
+  do.call('library', list(package))
+} else {
+  install.packages(package)
+  do.call("library", list(package))
+}
+
+set.seed(1234)
+
+# Create a formula in the form "Survived ~ V1 + V2 + ... + V33 + V34"
+fmla <- as.formula(paste("Survived ~ ", paste(names(nn_test), collapse= "+")))
+
+# Train the model
+nn <- neuralnet(fmla , data = nn_train, hidden = c(3))
+plot(nn)
+```
+
+```{r}
+# Predict some data 
+nn_predict <- compute(nn, subset(nn_train, select=-c(Survived)))
+cor(nn_predict$net.result, as.numeric(nn_train$Survived) - 1)
+```
+
+## Process and export data
+```{r}
+nn_predict <- compute(nn, nn_test)
+results <- round(nn_predict$net.result)
+results[results < 0] <- 0
+results[results > 1] <- 1
+results <- factor(x = results, c(0,1), c("Dead", "Survived"))
+
+export(results, "nn")
+```
+
+
+# knn?
+
+# 
