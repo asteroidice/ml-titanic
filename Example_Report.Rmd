@@ -31,7 +31,7 @@ test_results_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titani
 
 
 
-## Step 2 - Exploring And Preparing The Data
+  ## Step 2 - Exploring And Preparing The Data
 
 > Homework Notes: Explain the data features and any tranformations.
 

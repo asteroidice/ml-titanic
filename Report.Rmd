@@ -10,10 +10,14 @@ course: CPTR330
 ---
 
 # Titanic Data
+## Step 1 - Collecting the data
+
+This dataset has been made available to us by kaggle. Full details to the dataset can be found [here](https://www.kaggle.com/c/titanic/).
 
 ## Importing data.
 First things first we need to import our data to take a look at it. 
 ```{r}
+# This function gets the target csv file from the url. If that fails it uses a copy of the files stored locally. 
 get <- function(fileName) {
   # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
   file <- tryCatch({
@@ -23,44 +27,57 @@ get <- function(fileName) {
   })
   return(file)
 }
+# The train.csv contains all features and is used to train models. 
 raw_train <- get("train.csv")
+
+# The test.csv is not going to change during the final time. 
 raw_test <- get("test.csv")
+
+# The test_final.csv is what is going to be used (like a kaggle submission) to grade the performance of our algorithm. 
 raw_test_final <- get("test_final.csv")
+
+# The test_results.csv contains the labels (or answers) to test.csv.
 raw_test_results <- get("test_results.csv")
+
+# The test_results_final.csv contains the labels for test_final.csv.
 raw_test_results_final <- get("test_results_final.csv")
 
-# For testing purposes. 
-#train <- read.csv("./data/train.csv", stringsAsFactors = TRUE)
-#test_final <- read.csv("./data/test.csv", stringsAsFactors = TRUE)
+# Take a look at the data.
 str(raw_train)
 ```
 
-## Explaining data
+## Step 2 - Exploring And Preparing The Data
 
 The following list briefly explains what each variable is and what type (categorical or regression) it is.
 
-* **Survived**	A Boolean (0 or 1) indicating the survival of this particular passenger. 
-* **pclass**	Ticket class	1 = 1st, 2 = 2nd, 3 = 3rd (A numerical representation of the)
-* **sex**	Gender of the individual. 
-* **Age**	Age in floating point years.
-* **sibsp**	# of siblings / spouses aboard the Titanic
-* **parch**	# of parents / children aboard the Titanic	
-* **ticket**	Ticket number
-* **fare**	Passenger fare (the cost of the ticket).
-* **cabin**	Cabin number (String ex "A15" and "B12")
-* **embarked**	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton
+* **Survived**	A Boolean (0 or 1) indicating the survival of this particular passenger. (Categorical)
+* **pclass**	Ticket class	1 = 1st, 2 = 2nd, 3 = 3rd (A numerical representation of the) (Categorical)
+* **sex**	Gender of the individual. (Categorical)
+* **Age**	Age in floating point years. (Regression)
+* **sibsp**	# of siblings / spouses aboard the Titanic (regression)
+* **parch**	# of parents / children aboard the Titanic (regression) 
+* **ticket**	Ticket number (ID)
+* **fare**	Passenger fare (the cost of the ticket). (Regression)
+* **cabin**	Cabin number (String ex "A15" and "B12") (Categorical)
+* **embarked**	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton (Categorical)
 
 Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of variables so that everything works okay. Lastly I'm simplifying the cabin variable to just the first letter of the cabin. I believe this corresponds to the floor of the cabin. 
 ```{r}
 process <- function (titanic) {
+  # Nullify unique feilds (they are still stored for later use.)
   titanic$PassengerId <- NULL
   titanic$Name <- NULL
   titanic$Ticket <- NULL
+  
+  # Convert some variables to factors 
   levels(titanic$Embarked) <- c("Missing", "Cherbourg", "Queenstown",  "Southampton")
   titanic$Pclass <- as.factor(titanic$Pclass)
   if ("Survived" %in% names(titanic)){
     titanic$Survived <- factor(titanic$Survived, c(0, 1), c("Died", "Survived"))
   }
+  
+  # Convert Cabin to `Room` (this line will introduce NAs)
+  titanic$Room <- as.numeric(substring(as.character(titanic$Cabin), 2))
   
   # Convert cabin to "floor" (the first letter of each cabin)
   cabinLev <- levels(titanic$Cabin)
@@ -69,17 +86,18 @@ process <- function (titanic) {
   levels(titanic$Cabin) <- c("?","A", "B", "C", "D", "E", "F", "G", "T")
   titanic$Floor <- titanic$Cabin
   
-  
-  # Convert Cabin to `Room`
-  titanic$Room <- as.numeric(substring(as.character(titanic$Cabin), 2))
-  
+  # Remove Cabin becuase it is represented above. 
   titanic$Cabin <- NULL
   
   return(titanic)
 }
+
+# Process the new data. 
 train <- process(raw_train)
 test <- process(raw_test)
 test_final <- process(raw_test_final)
+
+# 
 test_results_final <- factor(raw_test_results_final$Survived, c(0, 1), c("Died", "Survived"))
 
 test_all <- cbind(Survived = test_results_final, test_final)
@@ -87,65 +105,86 @@ test_all <- cbind(Survived = test_results_final, test_final)
 titanic <- rbind(train, test_all)
 
 ```
-
+## Global Functions
 A global function for exporting data. `data` is a vector of answers and `name` the name of the csv that will be exported. (ex. name = "tree" -> "tree.csv")
 ```{r}
 export <- function(data,name) {
   kaggle <- data.frame(PassengerId = raw_test_final$PassengerId, Survived = as.numeric(data) - 1)
   write.csv(x = kaggle, file = paste("./exports/",  name, ".csv", sep = ""), row.names = F, quote = F)
 }
+
+# Dynamically install/import a package
+dynInstall <- function(package) {
+  if(package %in% rownames(installed.packages())) {
+    do.call('library', list(package))
+  } else {
+    install.packages(package)
+    do.call("library", list(package))
+  }
+}
 ```
 
-## Analyzing some data. 
+## Exploring the data
 
 ```{r}
-# Dynamically load `ggplot2`
-package <- 'ggplot2'
-if(package %in% rownames(installed.packages())) {
-  do.call('library', list(package))
-} else {
-  install.packages(package)
-  do.call("library", list(package))
-}
-package <- 'ggthemes'
-if(package %in% rownames(installed.packages())) {
-  do.call('library', list(package))
-} else {
-  install.packages(package)
-  do.call("library", list(package))
-}
+dynInstall('ggplot2')
 
+dynInstall('ggthemes')
 
-#ggplot <- function(...) ggplot2::ggplot(...) + scale_color_fivethirtyeight("cyl") + theme_fivethirtyeight()
+# Styles for the graphs. 
+# ggplot <- function(...) ggplot2::ggplot(...) + scale_color_fivethirtyeight("cyl") + theme_fivethirtyeight()
 # ggplot <- function(...) ggplot2::ggplot(...) + theme_hc() + scale_colour_hc()
+
+# Graph some continuous variables in a "Violin" graph.
 ggplot(titanic, aes(Survived, Fare)) + geom_violin(scale = "area") + ggtitle("Fare related to survival")
 ggplot(titanic, aes(Survived, Age)) + geom_violin(scale = "area") + ggtitle("Age related to survival")
 
-# Plot a jitter graph
+# Plot a jitter graph for the discrete variables. 
 ggplot(titanic, aes(Pclass, Survived)) + geom_jitter() + ggtitle("Person Class vs Survival")
 ggplot(titanic, aes(Sex, Survived)) + geom_jitter() + ggtitle("Gender vs Survival")
+
+# These are "3d" graphs that show two variables and the classificiation (survived or didn't survive) is shown as the color of the point.
 ggplot(titanic, aes(x = Floor, y = Room, colour = Survived)) + geom_jitter() + ggtitle("Cabin vs Survival")
 ggplot(titanic, aes(x=SibSp, y=Parch, colour = Survived)) + geom_jitter() + ggtitle("Family vs Survival") +labs(x="Siblings/Spouse", y="Parents/Children")
 ```
+
+All the graphs (except the gender graph) above seem to indicate that the titanic data doesn't have a very recognizable pattern. In other words there is a lot of noise. The algorithms that will then work better are ones like Descision Trees, Neural Networks, and random forest. Also because so many variables in this dataset are discrete a feature ML algorithm like Naive Bayes should also be considered. 
+
+```{r}
+# Correlation 
+dynInstall('corrplot')
+
+# Replace NA with the mean of that row.
+matrix <- lapply(titanic, function(x) {
+  x <- as.numeric(x)
+  avg <- mean(x, na.rm = T)
+  x[is.na(x)] <- avg
+  return(x)
+})
+
+matrix <- data.matrix(titanic, rownames.force = T)
+
+# Somehow NAs were introduced to lets set those to zero. 
+matrix[is.na(matrix)] <- 0
+
+# Calculate the correlation matrix.
+corr_titanic <- cor(matrix)
+
+# Graph the correlation matrix.
+corrplot(corr_titanic, method = "circle")
+```
+
+All of variables (excluding gender) are not linearly dependent on the graph. This means that a machine learning algorithm like a linear regression will not work very well for this dataset.
+
+# Step 3 - Training A Model On The Data
+
+Of the models I tested out the most successfull one was the Decision Tree. The other models are included here for clarity. These other models include: Naive bays, which performed the worse out of the four that I tested; Neural Networks, perfomred the second best right below decision trees; and Random Forest, which I wasn't able to predict any values for.  
 
 # Descision Trees
 
 ## Training
 ```{r}
-# Dynamically load `C50`
-package <- 'C50'
-if(package %in% rownames(installed.packages())) {
-  do.call('library', list(package))
-} else {
-  install.packages(package)
-  do.call("library", list(package))
-}
-
-# Preprocess
-names <- levels(train$Cabin)
-names[1] <- "?"
-levels(train$Cabin) <- names
-train$Cabin = train$Cabin
+dynInstall("C50")
 
 # Train the model. 
 tree <- C5.0(train[,-1], train$`Survived`, trials = 5)
@@ -155,29 +194,42 @@ summary(tree)
 ```
 
 
-## Testing
+## Step 4 - Evaluating Model Performance
 ```{r}
-tree_pred <- predict(tree, test)
+tree_pred <- function(test) {
+  tree_pred <- predict(tree, test)
 
-table(tree_pred, test_results_final)
+  table(tree_pred, test_results_final)
+  
+  # Calculate the percentage of correct guesses.
+  tree_correct <- tree_pred == test_results_final
+  
+  return(table(tree_correct)/length(tree_correct) * 100)
+}
 
-# Calculate the percentage of correct guesses.
-tree_correct <- tree_pred == test_results_final
-table(tree_correct)/length(tree_correct) * 100
+tree_test <- tree_pred(test)
+tree_test_final <- tree_pred(test_final)
 ```
 
-## Test 2
+The inital testing of the Decision tree was very good however, I was able to increase it's accuracy a little bit by increaseing the number of trials and a couple other parameters as seen below. 
+
+## Step 5 - Improving Model Performance
 ```{r}
 tree <- C5.0(train[,-1], train$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
 
 # summary(tree)
+tree_pred <- function(test) {
+  tree_pred <- predict(tree, test)
 
-# Testing
-tree_pred <- predict(tree, test)
+  # Calculate the percentage of correct guesses.
+  tree_correct <- tree_pred == test_results_final
+  return(table(tree_correct)/length(tree_correct) * 100)
+}
 
-# Calculate the percentage of correct guesses.
-tree_correct <- tree_pred == test_results_final
-table(tree_correct)/length(tree_correct) * 100
+
+tree2_test <- tree_pred(test)
+tree2_test_final <- tree_pred(test_final)
+
 ```
 
 ## Kaggle Exporting
@@ -186,17 +238,30 @@ tree_pred <- predict(tree, test_final)
 export(tree_pred, "tree")
 ```
 
-# Naive Bayes
+# Final Scoring
+
+```{r}
+# Kaggle Score
+accuracy_kaggle <- tree2_test
+accuracy_kaggle
+```
+
+```{r}
+# Final Score
+accuracy_final <- tree2_test_final
+accuracy_final
+```
+
+# Other Algorithms
+
+Much work was put into increasing the accuracy of these algorithms. However, they didn't perform better than decision trees so they are included here for clarity.
+
+## Naive Bayes
 
 ```{r}
 # Load e1071 if it's not installed install it. 
-package <- 'e1071'
-if(package %in% rownames(installed.packages())) {
-  do.call('library', list(package))
-} else {
-  install.packages(package)
-  do.call("library", list(package))
-}
+dynInstall('e1071')
+
 # Trains the data set.
 nb1 <- naiveBayes(Survived~., data=train)
 #nb1
@@ -214,7 +279,7 @@ table(nb_correct)/length(nb_correct) * 100
 export(nb_guess, "nb")
 ```
 
-# Neural Networks
+## Neural Networks
 
 Neural networks only work with numerical data so I'm going to for now, remove the categorical data. An option to do later would be to associate a category to a set of nodes and activate the corresponding input node for the specific category.
 ```{r}
@@ -254,18 +319,11 @@ nn_process <- function(titanic){
 nn_train <- nn_process(train)
 nn_test <- nn_process(test)
 ```
-Note that the cbind.all function() was found [here](https://stackoverflow.com/questions/26684072/add-columns-to-an-empty-data-frame-in-r).
 
 ## Training the neural network
 ```{r}
 # Dynamically load `neuralnet`
-package <- 'neuralnet'
-if(package %in% rownames(installed.packages())) {
-  do.call('library', list(package))
-} else {
-  install.packages(package)
-  do.call("library", list(package))
-}
+dynInstall('neuralnet')
 
 set.seed(1234)
 
@@ -294,3 +352,30 @@ results <- factor(x = results, c(0,1), c("Dead", "Survived"))
 export(results, "nn")
 ```
 
+## Random Forest
+```{r}
+
+dynInstall("randomForest")
+
+rf_process <- function(titanic) {
+  remove_na <- function(x) {
+    if(class(x) == "factor"){
+      return(x)
+    } else {
+      x[is.na(x)] <- 0
+      return(x)
+    }
+  }
+  return(lapply(titanic, remove_na))
+  
+}
+
+rf_train <- as.data.frame(rf_process(train))
+rf_test <- as.data.frame(rf_process(test))
+
+fmla <- as.formula(paste("Survived ~ ", paste(names(rf_train), collapse= "+")))
+
+rand_forest <- randomForest(fmla, data = rf_train, na.action = na.omit)
+print(rand_forest)
+rf_predict <- predict(rand_forest, rf_test$Age)
+```
