@@ -14,16 +14,25 @@ course: CPTR330
 ## Importing data.
 First things first we need to import our data to take a look at it. 
 ```{r}
-train <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/train.csv", stringsAsFactors = TRUE)
-test <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test.csv", stringsAsFactors = TRUE)
-test_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_final.csv", stringsAsFactors = TRUE)
-test_results <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results.csv", stringsAsFactors = TRUE)
-test_results_final <- read.csv("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/test_results_final.csv", stringsAsFactors = TRUE)
+get <- function(fileName) {
+  # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
+  file <- tryCatch({
+    return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
+  }, error = function(e) {
+    return(read.csv(paste0("./data/titanic/", fileName), stringsAsFactors = TRUE))
+  })
+  return(file)
+}
+raw_train <- get("train.csv")
+raw_test <- get("test.csv")
+raw_test_final <- get("test_final.csv")
+raw_test_results <- get("test_results.csv")
+raw_test_results_final <- get("test_results_final.csv")
 
 # For testing purposes. 
-train <- read.csv("./data/train.csv", stringsAsFactors = TRUE)
-test_final <- read.csv("./data/test.csv", stringsAsFactors = TRUE)
-str(train)
+#train <- read.csv("./data/train.csv", stringsAsFactors = TRUE)
+#test_final <- read.csv("./data/test.csv", stringsAsFactors = TRUE)
+str(raw_train)
 ```
 
 ## Explaining data
@@ -32,7 +41,7 @@ The following list briefly explains what each variable is and what type (categor
 
 * **Survived**	A Boolean (0 or 1) indicating the survival of this particular passenger. 
 * **pclass**	Ticket class	1 = 1st, 2 = 2nd, 3 = 3rd (A numerical representation of the)
-* **sex**	Gender of the individule. 
+* **sex**	Gender of the individual. 
 * **Age**	Age in floating point years.
 * **sibsp**	# of siblings / spouses aboard the Titanic
 * **parch**	# of parents / children aboard the Titanic	
@@ -41,32 +50,50 @@ The following list briefly explains what each variable is and what type (categor
 * **cabin**	Cabin number (String ex "A15" and "B12")
 * **embarked**	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton
 
-Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of vairables so that everything works okay. Lastly I'm simplifying the cabin variable to just the first letter of the cabin. I believe this corresponds to the floor of the cabin. 
+Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of variables so that everything works okay. Lastly I'm simplifying the cabin variable to just the first letter of the cabin. I believe this corresponds to the floor of the cabin. 
 ```{r}
 process <- function (titanic) {
-  if ("Survived" %in% names(titanic)){
-    titanic$Survived <- factor(titanic$Survived, c(0, 1), c("Died", "Survived"))
-  }
   titanic$PassengerId <- NULL
   titanic$Name <- NULL
   titanic$Ticket <- NULL
   levels(titanic$Embarked) <- c("Missing", "Cherbourg", "Queenstown",  "Southampton")
+  titanic$Pclass <- as.factor(titanic$Pclass)
+  if ("Survived" %in% names(titanic)){
+    titanic$Survived <- factor(titanic$Survived, c(0, 1), c("Died", "Survived"))
+  }
   
-  # Plot only cabins with more than 3 people. 
+  # Convert cabin to "floor" (the first letter of each cabin)
   cabinLev <- levels(titanic$Cabin)
   cabinLev <- substr(cabinLev, 1,1)
   levels(titanic$Cabin) <- cabinLev
   levels(titanic$Cabin) <- c("?","A", "B", "C", "D", "E", "F", "G", "T")
+  titanic$Floor <- titanic$Cabin
+  
+  
+  # Convert Cabin to `Room`
+  titanic$Room <- as.numeric(substring(as.character(titanic$Cabin), 2))
+  
+  titanic$Cabin <- NULL
+  
   return(titanic)
 }
-train_titanic <- process(train)
-test_titanic <- process(test_final)
-test_titanic_labels <- factor(test_results_final$Survived, c(0, 1), c("Died", "Survived"))
+train <- process(raw_train)
+test <- process(raw_test)
+test_final <- process(raw_test_final)
+test_results_final <- factor(raw_test_results_final$Survived, c(0, 1), c("Died", "Survived"))
 
-test_titanic_all <- cbind(Survived = test_titanic_labels, test_titanic)
+test_all <- cbind(Survived = test_results_final, test_final)
 
-titanic <- rbind(train_titanic, test_titanic_all)
+titanic <- rbind(train, test_all)
 
+```
+
+A global function for exporting data. `data` is a vector of answers and `name` the name of the csv that will be exported. (ex. name = "tree" -> "tree.csv")
+```{r}
+export <- function(data,name) {
+  kaggle <- data.frame(PassengerId = raw_test_final$PassengerId, Survived = as.numeric(data) - 1)
+  write.csv(x = kaggle, file = paste("./exports/",  name, ".csv", sep = ""), row.names = F, quote = F)
+}
 ```
 
 ## Analyzing some data. 
@@ -97,7 +124,7 @@ ggplot(titanic, aes(Survived, Age)) + geom_violin(scale = "area") + ggtitle("Age
 # Plot a jitter graph
 ggplot(titanic, aes(Pclass, Survived)) + geom_jitter() + ggtitle("Person Class vs Survival")
 ggplot(titanic, aes(Sex, Survived)) + geom_jitter() + ggtitle("Gender vs Survival")
-ggplot(titanic, aes(Cabin, Survived)) + geom_jitter() + ggtitle("Cabin Level vs Survival")
+ggplot(titanic, aes(x = Floor, y = Room, colour = Survived)) + geom_jitter() + ggtitle("Cabin vs Survival")
 ggplot(titanic, aes(x=SibSp, y=Parch, colour = Survived)) + geom_jitter() + ggtitle("Family vs Survival") +labs(x="Siblings/Spouse", y="Parents/Children")
 ```
 
@@ -118,10 +145,10 @@ if(package %in% rownames(installed.packages())) {
 names <- levels(train$Cabin)
 names[1] <- "?"
 levels(train$Cabin) <- names
-train_titanic$Cabin = train$Cabin
+train$Cabin = train$Cabin
 
 # Train the model. 
-tree <- C5.0(train_titanic[,-1], train_titanic$`Survived`, trials = 5)
+tree <- C5.0(train[,-1], train$`Survived`, trials = 5)
 
 summary(tree)
 # plot(tree)
@@ -130,28 +157,32 @@ summary(tree)
 
 ## Testing
 ```{r}
-tree_pred <- predict(tree, test_titanic)
+tree_pred <- predict(tree, test)
 
-table(tree_pred, test_titanic_labels)
+table(tree_pred, test_results_final)
 
 # Calculate the percentage of correct guesses.
-tree_correct <- tree_pred == test_titanic_labels
+tree_correct <- tree_pred == test_results_final
 table(tree_correct)/length(tree_correct) * 100
 ```
 
 ## Test 2
 ```{r}
-tree <- C5.0(train_titanic[,-1], train_titanic$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
+tree <- C5.0(train[,-1], train$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
 
-summary(tree)
+# summary(tree)
+
+# Testing
+tree_pred <- predict(tree, test)
+
+# Calculate the percentage of correct guesses.
+tree_correct <- tree_pred == test_results_final
+table(tree_correct)/length(tree_correct) * 100
 ```
+
 ## Kaggle Exporting
 ```{r}
-export <- function(data,name) {
-  kaggle <- data.frame(PassengerId = test_final$PassengerId, Survived = as.numeric(data) - 1)
-  write.csv(x = kaggle, file = paste("./exports/",  name, ".csv", sep = ""), row.names = F, quote = F)
-}
-
+tree_pred <- predict(tree, test_final)
 export(tree_pred, "tree")
 ```
 
@@ -167,17 +198,17 @@ if(package %in% rownames(installed.packages())) {
   do.call("library", list(package))
 }
 # Trains the data set.
-nb1 <- naiveBayes(Survived~., data=train_titanic)
+nb1 <- naiveBayes(Survived~., data=train)
 #nb1
 ```
 
 ## Testing 
 ```{r}
-nb_guess <- predict(nb1, test_titanic[,c("Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Cabin")])
-table(nb_guess, test_titanic_labels)
+nb_guess <- predict(nb1, test[,c("Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Cabin")])
+table(nb_guess, test_results_final)
 
 # Calculate the percentage of correct guesses.
-nb_correct <- nb_guess == test_titanic_labels
+nb_correct <- nb_guess == test_results_final
 table(nb_correct)/length(nb_correct) * 100
 
 export(nb_guess, "nb")
@@ -185,15 +216,28 @@ export(nb_guess, "nb")
 
 # Neural Networks
 
-Neural networks only work with numerical data so I'm going to for now, remove the categorical data. An option to do later would be to associate a category to a set of nodes and activate the corresponding inpute node for the specific category.
+Neural networks only work with numerical data so I'm going to for now, remove the categorical data. An option to do later would be to associate a category to a set of nodes and activate the corresponding input node for the specific category.
 ```{r}
 nn_process <- function(titanic){
+  
+  for(key in c("Cabin", "Embarked", "Pclass")) {
+    # Convert those factors into boolean data.frames
+    a <- NULL
+    for(level in levels(titanic[[key]])) {
+      a[[level]] <- as.numeric(titanic[key] == level)
+    }
+    # Add cbind all those data.frames together
+    titanic <- cbind(titanic, as.data.frame(a))
+    titanic[key] <- NULL
+  }
+  
+  
   # Covert Everything to a numeric.
   titanic <- lapply(titanic, function(x) as.numeric(x))
   
   # Define our Normalize function
   normalize <- function(x) {
-    if (anyNA(x)) {
+    if (anyNA(x) || max(x) == min(x)) {
       x <- scale(x, center = FALSE, scale = TRUE)
       x[is.na(x)] <- 0
       return(x)
@@ -207,9 +251,10 @@ nn_process <- function(titanic){
   return(titanic)
 }
 
-nn_train <- nn_process(train_titanic)
-nn_test <- nn_process(test_titanic)
+nn_train <- nn_process(train)
+nn_test <- nn_process(test)
 ```
+Note that the cbind.all function() was found [here](https://stackoverflow.com/questions/26684072/add-columns-to-an-empty-data-frame-in-r).
 
 ## Training the neural network
 ```{r}
@@ -224,11 +269,11 @@ if(package %in% rownames(installed.packages())) {
 
 set.seed(1234)
 
-# Create a formula in the form "Survived ~ V1 + V2 + ... + V33 + V34"
+# Create a formula in the form "Survived ~ V(1) + V(2) + ... + V(n-1) + V(n)"
 fmla <- as.formula(paste("Survived ~ ", paste(names(nn_test), collapse= "+")))
 
 # Train the model
-nn <- neuralnet(fmla , data = nn_train, hidden = c(3))
+nn <- neuralnet(fmla , data = nn_train, hidden = c(7, 7), threshold = 0.05)
 plot(nn)
 ```
 
@@ -249,7 +294,3 @@ results <- factor(x = results, c(0,1), c("Dead", "Survived"))
 export(results, "nn")
 ```
 
-
-# knn?
-
-# 
