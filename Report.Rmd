@@ -5,9 +5,13 @@ date: "May 31, 2017"
 output:
   pdf_document:
     number_section: yes
-  html_document: default
 course: CPTR330
 ---
+
+```{r, include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
 
 # Titanic Data
 ## Step 1 - Collecting the data
@@ -15,7 +19,7 @@ course: CPTR330
 This dataset has been made available to us by kaggle. Full details to the dataset can be found [here](https://www.kaggle.com/c/titanic/).
 
 ## Importing data.
-First things first we need to import our data to take a look at it. 
+First things first we need to do is import our data to take a look at it. 
 ```{r}
 # This function gets the target csv file from the url. If that fails it uses a copy of the files stored locally. 
 get <- function(fileName) {
@@ -61,7 +65,7 @@ The following list briefly explains what each variable is and what type (categor
 * **cabin**	Cabin number (String ex "A15" and "B12") (Categorical)
 * **embarked**	Port of Embarkation	C = Cherbourg, Q = Queenstown, S = Southampton (Categorical)
 
-Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of variables so that everything works okay. Lastly I'm simplifying the cabin variable to just the first letter of the cabin. I believe this corresponds to the floor of the cabin. 
+Because `PassengerId`, `Name` and `ticket` are mostly unique we they will not be useful in any machine learning calculation and are therefore nullified. I'm also changing some of the names of variables so that everything works okay. Lastly I'm separating the `Cabin` variable into two variables `Floor` and `Room`.
 ```{r}
 process <- function (titanic) {
   # Nullify unique feilds (they are still stored for later use.)
@@ -223,7 +227,7 @@ tree_pred <- function(test) {
 
   # Calculate the percentage of correct guesses.
   tree_correct <- tree_pred == test_results_final
-  return(table(tree_correct)/length(tree_correct) * 100)
+  return((table(tree_correct)/length(tree_correct))[["TRUE"]])
 }
 
 
@@ -269,7 +273,7 @@ nb1 <- naiveBayes(Survived~., data=train)
 
 ## Testing 
 ```{r}
-nb_guess <- predict(nb1, test[,c("Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Cabin")])
+nb_guess <- predict(nb1, test[,c("Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Floor", "Room")])
 table(nb_guess, test_results_final)
 
 # Calculate the percentage of correct guesses.
@@ -285,7 +289,7 @@ Neural networks only work with numerical data so I'm going to for now, remove th
 ```{r}
 nn_process <- function(titanic){
   
-  for(key in c("Cabin", "Embarked", "Pclass")) {
+  for(key in c("Embarked", "Pclass")) {
     # Convert those factors into boolean data.frames
     a <- NULL
     for(level in levels(titanic[[key]])) {
@@ -295,7 +299,6 @@ nn_process <- function(titanic){
     titanic <- cbind(titanic, as.data.frame(a))
     titanic[key] <- NULL
   }
-  
   
   # Covert Everything to a numeric.
   titanic <- lapply(titanic, function(x) as.numeric(x))
@@ -320,7 +323,7 @@ nn_train <- nn_process(train)
 nn_test <- nn_process(test)
 ```
 
-## Training the neural network
+### Training the neural network
 ```{r}
 # Dynamically load `neuralnet`
 dynInstall('neuralnet')
@@ -377,5 +380,17 @@ fmla <- as.formula(paste("Survived ~ ", paste(names(rf_train), collapse= "+")))
 
 rand_forest <- randomForest(fmla, data = rf_train, na.action = na.omit)
 print(rand_forest)
-rf_predict <- predict(rand_forest, rf_test$Age)
+# rf_predict <- predict(rand_forest, rf_test$Age)
+```
+Unfortunately random forests isn't working. Otherwise I'm would love to see the results it has.
+
+# Conclusion
+```{r}
+# Kaggle Score
+accuracy_kaggle
+```
+
+```{r}
+# Final Score
+accuracy_final
 ```
