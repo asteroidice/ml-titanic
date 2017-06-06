@@ -82,6 +82,10 @@ process <- function (titanic) {
   if ("Survived" %in% names(titanic)){
     titanic$Survived <- factor(titanic$Survived, c(0, 1), c("Died", "Survived"))
   }
+  # Remove the suprise variable.
+  if ("X" %in% names(titanic)){
+    titanic$X <- NULL
+  }
   
   # Convert Cabin to `Room` (this line will introduce NAs)
   titanic$Room <- as.numeric(substring(as.character(titanic$Cabin), 2))
@@ -105,6 +109,7 @@ test <- process(raw_test)
 test_final <- process(raw_test_final)
 
 # 
+test_results <- factor(raw_test_results$Survived, c(0, 1), c("Died", "Survived"))
 test_results_final <- factor(raw_test_results_final$Survived, c(0, 1), c("Died", "Survived"))
 
 test_all <- cbind(Survived = test_results_final, test_final)
@@ -203,19 +208,16 @@ summary(tree)
 
 ## Step 4 - Evaluating Model Performance
 ```{r}
-tree_pred <- function(test) {
-  tree_pred <- predict(tree, test)
-
-  table(tree_pred, test_results_final)
-  
-  # Calculate the percentage of correct guesses.
-  tree_correct <- tree_pred == test_results_final
-  
-  return(table(tree_correct)/length(tree_correct) * 100)
+tree_pred <- function(test, answer) {
+  prediction <- predict(tree, test)
+  xtab <- table(prediction, answer)
+  return(xtab)
 }
 
-tree_test <- tree_pred(test)
-tree_test_final <- tree_pred(test_final)
+tree_test <- tree_pred(test, test_results)
+tree_test
+tree_test_final <- tree_pred(test_final, test_results_final)
+tree_test_final
 ```
 
 The initial testing of the Decision tree was very good however, I was able to increase it's accuracy a little bit by increasing the number of trials and a couple other parameters as seen below. 
@@ -225,17 +227,19 @@ The initial testing of the Decision tree was very good however, I was able to in
 tree <- C5.0(train[,-1], train$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
 
 # summary(tree)
-tree_pred <- function(test) {
-  tree_pred <- predict(tree, test)
 
-  # Calculate the percentage of correct guesses.
-  tree_correct <- tree_pred == test_results_final
-  return((table(tree_correct)/length(tree_correct))[["TRUE"]])
+
+tree_pred <- function(test, answer) {
+  prediction <- predict(tree, test)
+  xtab <- table(prediction, answer)
+  return(xtab)
 }
 
 
-tree2_test <- tree_pred(test)
-tree2_test_final <- tree_pred(test_final)
+tree2_test <- tree_pred(test, test_results)
+tree2_test
+tree2_test_final <- tree_pred(test_final, test_results_final)
+tree2_test_final
 
 ```
 
@@ -249,13 +253,15 @@ export(tree_pred, "tree")
 
 ```{r}
 # Kaggle Score
-accuracy_kaggle <- tree2_test
+tree2_test
+accuracy_kaggle <- sum(diag(tree2_test))/sum(tree2_test)
 accuracy_kaggle
 ```
 
 ```{r}
 # Final Score
-accuracy_final <- tree2_test_final
+tree2_test_final
+accuracy_final <- sum(diag(tree2_test_final))/sum(tree2_test_final)
 accuracy_final
 ```
 
@@ -390,10 +396,12 @@ Unfortunately random forests isn't working. Otherwise I'm would love to see the 
 # Conclusion
 ```{r}
 # Kaggle Score (based on `test`)
+tree2_test
 accuracy_kaggle
 ```
 
 ```{r}
 # Final Score (based on `test_final`)
+tree2_test_final
 accuracy_final
 ```

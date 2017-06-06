@@ -1,0 +1,119 @@
+---
+title: "CPTR330 - Titanic Final Project"
+author: Preston Carman
+date: June 1, 2017
+course: CPTR330
+output: html_notebook
+---
+
+
+# Titanic Final Project 
+
+> Homework Notes: Describe the algorithm and give a few of the strengths and weaknesses.
+
+---
+
+
+## Step 1 - Collect Data
+
+> Homework Notes: Give an overview of the data and its source.
+
+---
+
+
+```{r}
+# This function gets the target csv file from the url. If that fails it uses a copy of the files stored locally. 
+get <- function(fileName) {
+  
+  # return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = FALSE))
+  
+  # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
+  file <- tryCatch({
+   return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = F))
+  }, error = function(e) {
+   return(read.csv(paste0("./data/titanic/", fileName), stringsAsFactors = TRUE))
+  })
+  return(file)
+}
+# The train.csv contains all features and is used to train models. 
+train <- get("train.csv")
+
+# The test.csv is not going to change during the final time. 
+test <- get("test.csv")
+
+# The test_final.csv is what is going to be used (like a kaggle submission) to grade the performance of our algorithm. 
+test_final <- get("test_final.csv")
+
+# The test_results.csv contains the labels (or answers) to test.csv.
+test_results <- get("test_results.csv")
+
+# The test_results_final.csv contains the labels for test_final.csv.
+test_results_final <- get("test_results_final.csv")
+```
+
+
+## Step 2 - Exploring And Preparing The Data
+
+> Homework Notes: Explain the data features and any tranformations.
+
+---
+
+
+```{r}
+train$Survived <- as.factor(train$Survived)
+train$Pclass <- as.factor(train$Pclass)
+
+test$Pclass <- as.factor(test$Pclass)
+test_results$Survived <- as.factor(test_results$Survived)
+
+test_final$Pclass <- as.factor(test_final$Pclass)
+test_results_final$Survived <- as.factor(test_results_final$Survived)
+```
+
+### Step 3 - Training A Model On The Data
+
+> Homework Notes: Explain how to train the model.
+
+---
+
+
+```{r}
+library(e1071)
+nb <- naiveBayes(Survived~Sex + Pclass, data=train, laplace = 1)
+```
+
+
+## Step 4 - Evaluating Model Performance
+
+> Homework Notes: Explain the model's perfromance. Highlight key results.
+
+---
+
+
+
+## Step 5 - Improving Model Performance
+
+> Homework Notes: What options can be used to improve the model? Explain and show.
+
+---
+
+
+```{r}
+# Kaggle Score
+prediction <- predict(nb, test, type="class")
+xtab <- table(prediction, test_results$Survived)
+xtab
+
+accuracy_kaggle <- sum(diag(xtab))/sum(xtab)
+accuracy_kaggle
+```
+
+```{r}
+# Final Score
+prediction_final <- predict(nb, test_final, type="class")
+xtab <- table(prediction_final, test_results_final$Survived)
+xtab
+
+accuracy_final <- sum(diag(xtab))/sum(xtab)
+accuracy_final
+```
