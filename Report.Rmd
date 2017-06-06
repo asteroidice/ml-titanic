@@ -1,7 +1,7 @@
 ---
 title: "CPTR330 -- Final Project"
 author: "Ryan Rabello"
-date: "May 31, 2017"
+date: "June 6, 2017"
 output:
   pdf_document:
     number_section: yes
@@ -26,7 +26,7 @@ get <- function(fileName) {
   
   return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
   
-  # # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
+  # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
   #file <- tryCatch({
   # return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
   #}, error = function(e) {
@@ -155,7 +155,7 @@ ggplot(titanic, aes(x = Floor, y = Room, colour = Survived)) + geom_jitter() + g
 ggplot(titanic, aes(x=SibSp, y=Parch, colour = Survived)) + geom_jitter() + ggtitle("Family vs Survival") +labs(x="Siblings/Spouse", y="Parents/Children")
 ```
 
-All the graphs (except the gender graph) above seem to indicate that the titanic data doesn't have a very recognizable pattern. In other words there is a lot of noise. The algorithms that will then work better are ones like Descision Trees, Neural Networks, and random forest. Also because so many variables in this dataset are discrete a feature ML algorithm like Naive Bayes should also be considered. 
+All the graphs (except the gender graph) above seem to indicate that the titanic data doesn't have a very recognizable pattern. In other words there is a lot of noise. The algorithms that will then work better are ones like Decision Trees, Neural Networks, and random forest. Also because so many variables in this dataset are discrete a feature ML algorithm like Naive Bayes should also be considered. 
 
 ```{r}
 # Correlation 
@@ -185,7 +185,7 @@ All of variables (excluding gender) are not linearly dependent on the graph. Thi
 
 # Step 3 - Training A Model On The Data
 
-Of the models I tested out the most successfull one was the Decision Tree. The other models are included here for clarity. These other models include: Naive bays, which performed the worse out of the four that I tested; Neural Networks, perfomred the second best right below decision trees; and Random Forest, which I wasn't able to predict any values for.  
+Of the models I tested out the most successful one was the Decision Tree. The other models are included here for clarity. These other models include: Naive bays, which performed the worse out of the four that I tested; Neural Networks, performed the second best right below decision trees; and Random Forest, which I wasn't able to predict any values for.  
 
 # Descision Trees
 
@@ -218,7 +218,7 @@ tree_test <- tree_pred(test)
 tree_test_final <- tree_pred(test_final)
 ```
 
-The inital testing of the Decision tree was very good however, I was able to increase it's accuracy a little bit by increaseing the number of trials and a couple other parameters as seen below. 
+The initial testing of the Decision tree was very good however, I was able to increase it's accuracy a little bit by increasing the number of trials and a couple other parameters as seen below. 
 
 ## Step 5 - Improving Model Performance
 ```{r}
