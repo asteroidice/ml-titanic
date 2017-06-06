@@ -23,13 +23,16 @@ First things first we need to do is import our data to take a look at it.
 ```{r}
 # This function gets the target csv file from the url. If that fails it uses a copy of the files stored locally. 
 get <- function(fileName) {
-  # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
-  file <- tryCatch({
-    return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
-  }, error = function(e) {
-    return(read.csv(paste0("./data/titanic/", fileName), stringsAsFactors = TRUE))
-  })
-  return(file)
+  
+  return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
+  
+  # # If the file is sucessfully found on the server download it, otherwise use a local copy of the files.
+  #file <- tryCatch({
+  # return(read.csv(paste0("https://cs.wallawalla.edu/~carmpr/cptr330/titanic/", fileName), stringsAsFactors = TRUE))
+  #}, error = function(e) {
+  # return(read.csv(paste0("./data/titanic/", fileName), stringsAsFactors = TRUE))
+  #})
+  #return(file)
 }
 # The train.csv contains all features and is used to train models. 
 raw_train <- get("train.csv")
@@ -386,11 +389,11 @@ Unfortunately random forests isn't working. Otherwise I'm would love to see the 
 
 # Conclusion
 ```{r}
-# Kaggle Score
+# Kaggle Score (based on `test`)
 accuracy_kaggle
 ```
 
 ```{r}
-# Final Score
+# Final Score (based on `test_final`)
 accuracy_final
 ```
