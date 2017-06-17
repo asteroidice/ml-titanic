@@ -147,17 +147,30 @@ dynInstall('ggthemes')
 # ggplot <- function(...) ggplot2::ggplot(...) + scale_color_fivethirtyeight("cyl") + theme_fivethirtyeight()
 # ggplot <- function(...) ggplot2::ggplot(...) + theme_hc() + scale_colour_hc()
 
-# Graph some continuous variables in a "Violin" graph.
-ggplot(titanic, aes(Survived, Fare)) + geom_violin(scale = "area") + ggtitle("Fare related to survival")
-ggplot(titanic, aes(Survived, Age)) + geom_violin(scale = "area") + ggtitle("Age related to survival")
+# Graph a histogram of Survival
+ggplot(titanic, aes(x = Survived)) + geom_bar() + ggtitle("Survival")
 
-# Plot a jitter graph for the discrete variables. 
+# Graph some continuous variables in a "Violin" graph.
+ggplot(titanic, aes(Survived, Fare)) + geom_violin(aes(fill = Survived), scale = "area") + ggtitle("Fare related to survival")
+ggplot(titanic, aes(Survived, Age)) + geom_violin(aes(fill = Survived), scale = "area") + ggtitle("Age related to survival")
+ggplot(titanic, aes(Fare, fill = Survived)) + geom_histogram() + ggtitle("Fare Frequency vs Survival")
+ggplot(titanic, aes(Age, fill = Survived)) + geom_histogram() + ggtitle("Age Frequency vs Survival")
+ggplot(titanic, aes(Age, fill = Survived)) + geom_histogram(binwidth = 1) + ggtitle("Age Frequency vs Survival")
+ggplot(titanic, aes(Age, ..density.., colour = Survived)) + geom_freqpoly(binwidth = 2)
+
+# Plot a jitter graph for the discrete variables.
+ggplot(titanic, aes(Embarked, Survived)) + geom_jitter() + ggtitle("Embarked vs Survival")
 ggplot(titanic, aes(Pclass, Survived)) + geom_jitter() + ggtitle("Person Class vs Survival")
 ggplot(titanic, aes(Sex, Survived)) + geom_jitter() + ggtitle("Gender vs Survival")
+
 
 # These are "3d" graphs that show two variables and the classificiation (survived or didn't survive) is shown as the color of the point.
 ggplot(titanic, aes(x = Floor, y = Room, colour = Survived)) + geom_jitter() + ggtitle("Cabin vs Survival")
 ggplot(titanic, aes(x=SibSp, y=Parch, colour = Survived)) + geom_jitter() + ggtitle("Family vs Survival") +labs(x="Siblings/Spouse", y="Parents/Children")
+
+# Added after running algorithms
+ggplot(titanic, aes(x = Pclass, y = Sex, colour = Survived)) + geom_jitter() + ggtitle("Class and Gender vs Survival")
+ggplot(titanic, aes(x = Embarked, y = Pclass, colour = Survived)) + geom_jitter() + ggtitle("Class and Gender vs Survival")
 ```
 
 All the graphs (except the gender graph) above seem to indicate that the titanic data doesn't have a very recognizable pattern. In other words there is a lot of noise. The algorithms that will then work better are ones like Decision Trees, Neural Networks, and random forest. Also because so many variables in this dataset are discrete a feature ML algorithm like Naive Bayes should also be considered. 
@@ -226,8 +239,8 @@ The initial testing of the Decision tree was very good however, I was able to in
 ```{r}
 tree <- C5.0(train[,-1], train$`Survived`, trials = 10, control = C5.0Control(bands = 50), rules = T)
 
-# summary(tree)
-
+summary(tree)
+# plot(tree)
 
 tree_pred <- function(test, answer) {
   prediction <- predict(tree, test)
@@ -240,6 +253,7 @@ tree2_test <- tree_pred(test, test_results)
 tree2_test
 tree2_test_final <- tree_pred(test_final, test_results_final)
 tree2_test_final
+
 
 ```
 
@@ -343,7 +357,7 @@ set.seed(1234)
 fmla <- as.formula(paste("Survived ~ ", paste(names(nn_test), collapse= "+")))
 
 # Train the model
-nn <- neuralnet(fmla , data = nn_train, hidden = c(7, 7), threshold = 0.05)
+nn <- neuralnet(fmla , data = nn_train, hidden = c(3), threshold = 0.05)
 plot(nn)
 ```
 
